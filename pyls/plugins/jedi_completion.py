@@ -46,6 +46,9 @@ class LabelResolver(Thread):
     def get_or_create(self, completion: Completion, asynchronous: bool):
         if not asynchronous:
             return self.resolve_label(completion)
+        else:
+            if not self.is_alive():
+                self.start()
         # note: no jedi lock; with lock it would take too much time and take away any benefit
         # this limits the operations that we can perform to those that do not touch jedi cache
         key = self._create_completion_id(completion)
@@ -89,7 +92,6 @@ class LabelResolver(Thread):
 
 
 LABEL_RESOLVER = LabelResolver()
-LABEL_RESOLVER.start()
 
 
 log = logging.getLogger(__name__)
