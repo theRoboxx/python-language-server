@@ -44,22 +44,23 @@ class LabelResolver(Thread):
         self._cache = {}
 
     def get_or_create(self, completion: Completion, asynchronous: bool):
-        if not asynchronous:
-            return self.resolve_label(completion)
-        else:
-            if not self.is_alive():
-                self.start()
+        if asynchronous and not self.is_alive():
+            self.start()
         # note: no jedi lock; with lock it would take too much time and take away any benefit
         # this limits the operations that we can perform to those that do not touch jedi cache
         key = self._create_completion_id(completion)
         if key in self._cache:
             # get what we know at the time
             most_resent = self._cache[key]
-            # schedule for refreshment
-            self.queue.put_nowait((key, completion))
+            if asynchronous:
+                # schedule for refreshment
+                self.queue.put_nowait((key, completion))
             return most_resent
         else:
-            self.queue.put_nowait((key, completion))
+            if asynchronous:
+                self.queue.put_nowait((key, completion))
+            else:
+                self._cache[key] = self.resolve_label(completion)
             return None
 
     @staticmethod
