@@ -162,7 +162,7 @@ def pyls_completions(config, document, position):
 
     should_include_params = settings.get('include_params')
     should_include_class_objects = settings.get('include_class_objects', True)
-    resolve_labels_asynchronously = settings.get('asynchronous_labels', True)
+    resolve_labels_asynchronously = settings.get('asynchronous_labels', False)
 
     include_params = snippet_support and should_include_params and use_snippets(document, position)
     include_class_objects = snippet_support and should_include_class_objects and use_snippets(document, position)
