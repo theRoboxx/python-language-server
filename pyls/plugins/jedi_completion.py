@@ -1,10 +1,96 @@
 # Copyright 2017 Palantir Technologies, Inc.
 import logging
 import os.path as osp
+import threading
+from threading import Thread
+from queue import LifoQueue
 
 import parso
 
+from jedi.api.classes import Completion
 from pyls import _utils, hookimpl, lsp
+
+# Jedi is not thread-safe (it does a lot of caching using pickles), all operations have to be locked!
+JEDI_COMPLETION_LOCK = threading.Lock()
+
+
+class KeyUniqueLastInFirstOutQueue(LifoQueue):
+    """
+    LIFO: Users care the most about the completions that they request now,
+    not those that they tried to get a minute ago;
+    Unique by key: no reason to do the same job twice;
+    """
+    def _init(self, maxsize=None):
+        super()._init(maxsize)
+        self.keys = set()
+
+    def _put(self, item: tuple):
+        key = item[0]
+        if key not in self.keys:
+            self.keys.add(key)
+            super()._put(item)
+
+    def _get(self):
+        item = super()._get()
+        self.keys.remove(item[0])
+        return item
+
+
+class LabelResolver(Thread):
+
+    def __init__(self):
+        super().__init__(daemon=True)
+        self.queue = KeyUniqueLastInFirstOutQueue()
+        self._cache = {}
+
+    def get_or_create(self, completion: Completion, asynchronous: bool):
+        if not asynchronous:
+            return self.resolve_label(completion)
+        # note: no jedi lock; with lock it would take too much time and take away any benefit
+        # this limits the operations that we can perform to those that do not touch jedi cache
+        key = self._create_completion_id(completion)
+        if key in self._cache:
+            # get what we know at the time
+            most_resent = self._cache[key]
+            # schedule for refreshment
+            self.queue.put_nowait((key, completion))
+            return most_resent
+        else:
+            self.queue.put_nowait((key, completion))
+            return None
+
+    @staticmethod
+    def _create_completion_id(completion: Completion):
+        # this key is not perfect but the best we can get without making it take a lot of time
+        return completion.full_name, completion.module_path, completion.line, completion.column
+
+    @staticmethod
+    def resolve_label(completion):
+        try:
+            with JEDI_COMPLETION_LOCK:
+                sig = completion.get_signatures()
+                if sig and completion.type in ('function', 'method'):
+                    params = ', '.join(param.name for param in sig[0].params)
+                    label = '{}({})'.format(completion.name, params)
+                    return label
+                else:
+                    return completion.name
+        except Exception as e:
+            log.warning(
+                'Something went wrong when resolving label for {completion}: {e}'.format(
+                    completion=completion, e=e
+                )
+            )
+
+    def run(self):
+        while True:
+            key, completion = self.queue.get()
+            self._cache[key] = self.resolve_label(completion)
+
+
+LABEL_RESOLVER = LabelResolver()
+LABEL_RESOLVER.start()
+
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +151,8 @@ def pyls_completions(config, document, position):
     code_position = _utils.position_to_jedi_linecolumn(document, position)
 
     code_position["fuzzy"] = settings.get("fuzzy", False)
-    completions = document.jedi_script(use_document_path=True).complete(**code_position)
+    with JEDI_COMPLETION_LOCK:
+        completions = document.jedi_script(use_document_path=True).complete(**code_position)
 
     if not completions:
         return None
@@ -75,19 +162,22 @@ def pyls_completions(config, document, position):
 
     should_include_params = settings.get('include_params')
     should_include_class_objects = settings.get('include_class_objects', True)
+    resolve_labels_asynchronously = settings.get('asynchronous_labels', True)
 
     include_params = snippet_support and should_include_params and use_snippets(document, position)
     include_class_objects = snippet_support and should_include_class_objects and use_snippets(document, position)
 
-    ready_completions = [
-        _format_completion(c, include_params)
-        for c in completions
-    ]
+    with JEDI_COMPLETION_LOCK:
+        ready_completions = [
+            _format_completion(c, include_params, asynchronous_labels=resolve_labels_asynchronously)
+            for c in completions
+        ]
 
     if include_class_objects:
         for c in completions:
             if c.type == 'class':
-                completion_dict = _format_completion(c, False, resolve=resolve_eagerly)
+                with JEDI_COMPLETION_LOCK:
+                    completion_dict = _format_completion(c, False, resolve=resolve_eagerly, asynchronous_labels=resolve_labels_asynchronously)
                 completion_dict['kind'] = lsp.CompletionItemKind.TypeParameter
                 completion_dict['label'] += ' object'
                 ready_completions.append(completion_dict)
@@ -164,9 +254,9 @@ def _resolve_completion(completion, d):
     return completion
 
 
-def _format_completion(d, include_params=True, resolve=False):
+def _format_completion(d, include_params=True, resolve=False, asynchronous_labels=True):
     completion = {
-        'label': _label(d),
+        'label': _label(d, asynchronous_labels),
         'kind': _TYPE_MAP.get(d.type),
         'sortText': _sort_text(d),
         'insertText': d.name
@@ -181,8 +271,11 @@ def _format_completion(d, include_params=True, resolve=False):
         path = path.replace('/', '\\/')
         completion['insertText'] = path
 
-    sig = d.get_signatures()
-    if (include_params and sig and not is_exception_class(d.name)):
+    if include_params and not is_exception_class(d.name):
+        sig = d.get_signatures()
+        if not sig:
+            return completion
+
         positional_args = [param for param in sig[0].params
                            if '=' not in param.description and
                            param.name not in {'/', '*'}]
@@ -206,12 +299,10 @@ def _format_completion(d, include_params=True, resolve=False):
     return completion
 
 
-def _label(definition):
-    sig = definition.get_signatures()
-    if definition.type in ('function', 'method') and sig:
-        params = ', '.join(param.name for param in sig[0].params)
-        return '{}({})'.format(definition.name, params)
-
+def _label(definition, asynchronous=True):
+    sig = LABEL_RESOLVER.get_or_create(definition, asynchronous)
+    if sig:
+        return sig
     return definition.name
 
 

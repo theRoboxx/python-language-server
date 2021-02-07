@@ -75,6 +75,11 @@
                     "default": false,
                     "description": "Resolve documentation and detail eagerly."
                 },
+                "pyls.plugins.jedi_completion.asynchronous_labels": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Fetch labels asynchronously from cache (significant performance improvement, higher memory use, parameters are only show/updated in a second completion request)."
+                },
                 "pyls.plugins.jedi_definition.enabled": {
                     "type": "boolean",
                     "default": true,
