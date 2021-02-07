@@ -1,19 +1,19 @@
 Python Language Server
 ======================
 
-.. image:: https://github.com/palantir/python-language-server/workflows/Linux%20tests/badge.svg
-    :target: https://github.com/palantir/python-language-server/actions?query=workflow%3A%22Linux+tests%22
+.. image:: https://github.com/krassowski/python-language-server/workflows/Linux%20tests/badge.svg
+    :target: https://github.com/krassowski/python-language-server/actions?query=workflow%3A%22Linux+tests%22
 
-.. image:: https://github.com/palantir/python-language-server/workflows/Mac%20tests/badge.svg
-    :target: https://github.com/palantir/python-language-server/actions?query=workflow%3A%22Mac+tests%22
+.. image:: https://github.com/krassowski/python-language-server/workflows/Mac%20tests/badge.svg
+    :target: https://github.com/krassowski/python-language-server/actions?query=workflow%3A%22Mac+tests%22
 
-.. image:: https://github.com/palantir/python-language-server/workflows/Windows%20tests/badge.svg
-    :target: https://github.com/palantir/python-language-server/actions?query=workflow%3A%22Windows+tests%22
+.. image:: https://github.com/krassowski/python-language-server/workflows/Windows%20tests/badge.svg
+    :target: https://github.com/krassowski/python-language-server/actions?query=workflow%3A%22Windows+tests%22
 
-.. image:: https://img.shields.io/github/license/palantir/python-language-server.svg
-     :target: https://github.com/palantir/python-language-server/blob/master/LICENSE
+.. image:: https://img.shields.io/github/license/krassowski/python-language-server.svg
+     :target: https://github.com/krassowski/python-language-server/blob/master/LICENSE
 
-A Python 2.7 and 3.5+ implementation of the `Language Server Protocol`_.
+A Python 3.6+ implementation of the `Language Server Protocol`_. A friendly fork of the `palantir/python-language-server`.
 
 Installation
 ------------
@@ -21,7 +21,7 @@ Installation
 The base language server requires Jedi_ to provide Completions, Definitions, Hover, References, Signature Help, and
 Symbols:
 
-``pip install python-language-server``
+``pip install git+https://github.com/krassowski/python-language-server.git@main``
 
 If the respective dependencies are found, the following optional providers will be enabled:
 
@@ -75,9 +75,9 @@ To enable pydocstyle for linting docstrings add the following setting in your LS
 "pyls.plugins.pydocstyle.enabled": true
 ```
 
-See `vscode-client/package.json`_ for the full set of supported configuration options.
+See `package.json`_ for the full set of supported configuration options.
 
-.. _vscode-client/package.json: vscode-client/package.json
+.. _package.json: vscode-client/package.json
 
 Language Server Features
 ------------------------
@@ -117,36 +117,13 @@ Document Formatting:
 Development
 -----------
 
+Please branch of the `develop` branch which is being kept in sync with upstream rather than from the `main` branch
+if possible, to allow to send pull requests upstream.
+
 To run the test suite:
 
 ``pip install .[test] && pytest``
 
-Develop against VS Code
-=======================
-
-The Python language server can be developed against a local instance of Visual Studio Code.
-
-Install `VSCode <https://code.visualstudio.com/download>`_
-
-.. code-block:: bash
-
-    # Setup a virtual env
-    virtualenv env
-    . env/bin/activate
-
-    # Install pyls
-    pip install .
-
-    # Install the vscode-client extension
-    cd vscode-client
-    yarn install
-
-    # Run VSCode which is configured to use pyls
-    # See the bottom of vscode-client/src/extension.ts for info
-    yarn run vscode -- $PWD/../
-
-Then to debug, click View -> Output and in the dropdown will be pyls.
-To refresh VSCode, press `Cmd + r`
 
 License
 -------
