@@ -6,7 +6,7 @@ import pytest
 
 from pyls import uris, lsp
 from pyls.workspace import Document
-from pyls.plugins.jedi_completion import pyls_completions as pyls_jedi_completions
+from pyls.plugins.jedi_completion import pyls_completions as pyls_jedi_completions, LABEL_RESOLVER
 from pyls.plugins.rope_completion import pyls_completions as pyls_rope_completions
 
 
@@ -41,6 +41,11 @@ print Hello().every
 """
 
 
+def wait_for_empty_queue():
+    while not LABEL_RESOLVER.queue.empty():
+        pass
+
+
 def test_rope_import_completion(config, workspace):
     com_position = {'line': 0, 'character': 7}
     doc = Document(DOC_URI, workspace, DOC)
@@ -52,6 +57,8 @@ def test_jedi_completion(config, workspace):
     # Over 'i' in os.path.isabs(...)
     com_position = {'line': 1, 'character': 15}
     doc = Document(DOC_URI, workspace, DOC)
+    pyls_jedi_completions(config, doc, com_position)
+    wait_for_empty_queue()
     items = pyls_jedi_completions(config, doc, com_position)
 
     assert items
@@ -71,6 +78,11 @@ def test_jedi_completion_with_fuzzy_enabled(config, workspace):
     items = pyls_jedi_completions(config, doc, com_position)
 
     assert items
+    assert items[0]['label'] == 'commonprefix'
+
+    from time import sleep
+    sleep(5)
+    items = pyls_jedi_completions(config, doc, com_position)
     assert items[0]['label'] == 'commonprefix(list)'
 
     # Test we don't throw with big character
@@ -92,6 +104,8 @@ def test_jedi_completion_ordering(config, workspace):
     # Over the blank line
     com_position = {'line': 8, 'character': 0}
     doc = Document(DOC_URI, workspace, DOC)
+    pyls_jedi_completions(config, doc, com_position)
+    wait_for_empty_queue()
     completions = pyls_jedi_completions(config, doc, com_position)
 
     items = {c['label']: c['sortText'] for c in completions}
@@ -120,6 +134,8 @@ def test_jedi_method_completion(config, workspace):
     config.capabilities['textDocument'] = {'completion': {'completionItem': {'snippetSupport': True}}}
     config.update({'plugins': {'jedi_completion': {'include_params': True}}})
 
+    pyls_jedi_completions(config, doc, com_position)
+    wait_for_empty_queue()
     completions = pyls_jedi_completions(config, doc, com_position)
     everyone_method = [completion for completion in completions if completion['label'] == 'everyone(a, b, c, d)'][0]
 
@@ -305,6 +321,9 @@ foo.s"""
     # After 'foo.s' with extra paths
     com_position = {'line': 1, 'character': 5}
     completions = pyls_jedi_completions(doc._config, doc, com_position)
+    assert completions[0]['label'] == 'spam'
+    wait_for_empty_queue()
+    completions = pyls_jedi_completions(doc._config, doc, com_position)
     assert completions[0]['label'] == 'spam()'
 
 
@@ -355,5 +374,8 @@ mymodule.f"""
     doc = Document(doc_uri, workspace_other_root_path, doc_content)
 
     com_position = {'line': 1, 'character': 10}
+    completions = pyls_jedi_completions(doc._config, doc, com_position)
+    assert completions[0]['label'] == 'foo'
+    wait_for_empty_queue()
     completions = pyls_jedi_completions(doc._config, doc, com_position)
     assert completions[0]['label'] == 'foo()'
