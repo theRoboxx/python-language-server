@@ -151,7 +151,20 @@ def format_docstring(contents):
     """
     contents = contents.replace('\t', u'\u00A0' * 4)
     contents = contents.replace('  ', u'\u00A0' * 2)
-    return contents
+
+    if not contents:
+        return contents
+
+    from docstring_to_markdown import convert, UnknownFormatError
+    try:
+        value = convert(contents)
+    except UnknownFormatError:
+        return contents
+
+    return {
+        'kind': 'markdown',
+        'value': value
+    }
 
 
 def clip_column(column, lines, line_number):
