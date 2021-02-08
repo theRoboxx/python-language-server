@@ -251,6 +251,11 @@ def _format_completion(d, include_params=True, resolve=False, resolve_label=Fals
     completion = {
         'label': _label(d, resolve_label),
         'kind': _TYPE_MAP.get(d.type),
+        'detail': _detail(d),
+        'documentation': _utils.format_docstring(
+            d.docstring(raw=True),
+            signature=d._get_docstring_signature()
+        ),
         'sortText': _sort_text(d),
         'insertText': d.name
     }
