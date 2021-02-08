@@ -153,7 +153,6 @@ def pyls_completions(config, document, position):
     include_params = snippet_support and should_include_params and use_snippets(document, position)
     include_class_objects = snippet_support and should_include_class_objects and use_snippets(document, position)
     should_resolve_labels = len(completions) <= max_labels_resolve
-    log.warning(f"resolve: {should_resolve_labels}")
 
     ready_completions = [
         _format_completion(
