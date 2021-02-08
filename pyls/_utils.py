@@ -143,23 +143,34 @@ def merge_dicts(dict_a, dict_b):
     return dict(_merge_dicts_(dict_a, dict_b))
 
 
-def format_docstring(contents):
+def wrap_signature(signature):
+    return '```python\n' + signature + '\n```'
+
+
+def format_docstring(contents, signature=None):
     """Python doc strings come in a number of formats, but LSP wants markdown.
 
     Until we can find a fast enough way of discovering and parsing each format,
     we can do a little better by at least preserving indentation.
     """
-    contents = contents.replace('\t', u'\u00A0' * 4)
-    contents = contents.replace('  ', u'\u00A0' * 2)
-
     if not contents:
         return contents
 
     from docstring_to_markdown import convert, UnknownFormatError
     try:
         value = convert(contents)
+        if signature:
+            signatures = signature.split('\n')
+            if len(signatures) > 2:
+                prefix = wrap_signature(signatures[0]) + (
+                    '\n<details>\n'
+                    '\n<summary>More signatures</summary>\n'
+                ) + '\n'.join([wrap_signature(s) for s in signatures[1:]]) + '\n</details>'
+            else:
+                prefix = wrap_signature(signature)
+            value = prefix + '\n\n' + value
     except UnknownFormatError:
-        return contents
+        return contents.replace('\t', u'\u00A0' * 4).replace('  ', u'\u00A0' * 2)
 
     return {
         'kind': 'markdown',
