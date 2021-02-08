@@ -36,8 +36,11 @@ class LabelResolver:
         return int(time() / self._time_to_live)
 
     def get_or_create(self, completion: Completion):
-        module_parts = completion.full_name.split('.')
-        use_cache = module_parts and module_parts[0] in self._cached_modules
+        if not completion.full_name:
+            use_cache = False
+        else:
+            module_parts = completion.full_name.split('.')
+            use_cache = module_parts and module_parts[0] in self._cached_modules
 
         if use_cache:
             key = self._create_completion_id(completion)
@@ -242,7 +245,7 @@ def use_snippets(document, position):
 
 def _resolve_completion(completion, d):
     completion['detail'] = _detail(d)
-    completion['documentation'] = _utils.format_docstring(d.docstring())
+    completion['documentation'] = _utils.format_docstring(d.docstring(raw=True), signature=d._get_docstring_signature())
     return completion
 
 
@@ -250,11 +253,6 @@ def _format_completion(d, include_params=True, resolve=False, resolve_label=Fals
     completion = {
         'label': _label(d, resolve_label),
         'kind': _TYPE_MAP.get(d.type),
-        'detail': _detail(d),
-        'documentation': _utils.format_docstring(
-            d.docstring(raw=True),
-            signature=d._get_docstring_signature()
-        ),
         'sortText': _sort_text(d),
         'insertText': d.name
     }

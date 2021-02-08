@@ -144,7 +144,7 @@ def merge_dicts(dict_a, dict_b):
 
 
 def wrap_signature(signature):
-    return '```python\n' + signature + '\n```'
+    return '```python\n' + signature + '\n```\n'
 
 
 def format_docstring(contents, signature=None):
