@@ -164,7 +164,7 @@ def format_docstring(contents, signature=None):
             if len(signatures) > 2:
                 prefix = wrap_signature(signatures[0]) + (
                     '\n<details>\n'
-                    '\n<summary>More signatures</summary>\n'
+                    '\n<summary>More signatures</summary>\n\n'
                 ) + '\n'.join([wrap_signature(s) for s in signatures[1:]]) + '\n</details>'
             else:
                 prefix = wrap_signature(signature)
