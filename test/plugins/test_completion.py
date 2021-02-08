@@ -8,7 +8,6 @@ from pyls import uris, lsp
 from pyls.workspace import Document
 from pyls.plugins.jedi_completion import pyls_completions as pyls_jedi_completions
 from pyls.plugins.jedi_completion import pyls_completion_item_resolve as pyls_jedi_completion_item_resolve
-from pyls.plugins.jedi_completion import LABEL_RESOLVER
 from pyls.plugins.rope_completion import pyls_completions as pyls_rope_completions
 
 
@@ -47,11 +46,6 @@ def documented_hello():
 """
 
 
-def wait_for_empty_queue():
-    while not LABEL_RESOLVER.queue.empty():
-        pass
-
-
 def test_rope_import_completion(config, workspace):
     com_position = {'line': 0, 'character': 7}
     doc = Document(DOC_URI, workspace, DOC)
@@ -63,8 +57,6 @@ def test_jedi_completion(config, workspace):
     # Over 'i' in os.path.isabs(...)
     com_position = {'line': 1, 'character': 15}
     doc = Document(DOC_URI, workspace, DOC)
-    pyls_jedi_completions(config, doc, com_position)
-    wait_for_empty_queue()
     items = pyls_jedi_completions(config, doc, com_position)
 
     assert items
@@ -129,8 +121,6 @@ def test_jedi_completion_ordering(config, workspace):
     # Over the blank line
     com_position = {'line': 8, 'character': 0}
     doc = Document(DOC_URI, workspace, DOC)
-    pyls_jedi_completions(config, doc, com_position)
-    wait_for_empty_queue()
     completions = pyls_jedi_completions(config, doc, com_position)
 
     items = {c['label']: c['sortText'] for c in completions}
@@ -159,8 +149,6 @@ def test_jedi_method_completion(config, workspace):
     config.capabilities['textDocument'] = {'completion': {'completionItem': {'snippetSupport': True}}}
     config.update({'plugins': {'jedi_completion': {'include_params': True}}})
 
-    pyls_jedi_completions(config, doc, com_position)
-    wait_for_empty_queue()
     completions = pyls_jedi_completions(config, doc, com_position)
     everyone_method = [completion for completion in completions if completion['label'] == 'everyone(a, b, c, d)'][0]
 
@@ -194,6 +182,16 @@ def test_numpy_completions(config, workspace):
     doc_numpy = "import numpy as np; np."
     com_position = {'line': 0, 'character': len(doc_numpy)}
     doc = Document(DOC_URI, workspace, doc_numpy)
+    import cProfile
+    import jedi
+    cProfile.runctx(
+        'pyls_jedi_completions(config, doc, com_position)', globals(), locals(),
+        f'pyls_jedi_{jedi.__version__}_numpy_completions_1-cache.prof'
+    )
+    cProfile.runctx(
+        'pyls_jedi_completions(config, doc, com_position)', globals(), locals(),
+        f'pyls_jedi_{jedi.__version__}_numpy_completions_2-cache.prof'
+    )
     items = pyls_jedi_completions(config, doc, com_position)
 
     assert items
@@ -346,9 +344,6 @@ foo.s"""
     # After 'foo.s' with extra paths
     com_position = {'line': 1, 'character': 5}
     completions = pyls_jedi_completions(doc._config, doc, com_position)
-    assert completions[0]['label'] == 'spam'
-    wait_for_empty_queue()
-    completions = pyls_jedi_completions(doc._config, doc, com_position)
     assert completions[0]['label'] == 'spam()'
 
 
@@ -401,8 +396,5 @@ mymodule.f"""
     doc = Document(doc_uri, workspace_other_root_path, doc_content)
 
     com_position = {'line': 1, 'character': 10}
-    completions = pyls_jedi_completions(doc._config, doc, com_position)
-    assert completions[0]['label'] == 'foo'
-    wait_for_empty_queue()
     completions = pyls_jedi_completions(doc._config, doc, com_position)
     assert completions[0]['label'] == 'foo()'

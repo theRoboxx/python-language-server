@@ -1,95 +1,73 @@
 # Copyright 2017 Palantir Technologies, Inc.
 import logging
 import os.path as osp
-import threading
-from threading import Thread
-from queue import LifoQueue
+from collections import defaultdict
+from time import time
 
 import parso
 
 from jedi.api.classes import Completion
 from pyls import _utils, hookimpl, lsp
 
-# Jedi is not thread-safe (it does a lot of caching using pickles), all operations have to be locked!
-JEDI_COMPLETION_LOCK = threading.Lock()
 
+class LabelResolver:
 
-class KeyUniqueLastInFirstOutQueue(LifoQueue):
-    """
-    LIFO: Users care the most about the completions that they request now,
-    not those that they tried to get a minute ago;
-    Unique by key: no reason to do the same job twice;
-    """
-    def _init(self, maxsize=None):
-        super()._init(maxsize)
-        self.keys = set()
-
-    def _put(self, item: tuple):
-        key = item[0]
-        if key not in self.keys:
-            self.keys.add(key)
-            super()._put(item)
-
-    def _get(self):
-        item = super()._get()
-        self.keys.remove(item[0])
-        return item
-
-
-class LabelResolver(Thread):
-
-    def __init__(self):
-        super().__init__(daemon=True)
-        self.queue = KeyUniqueLastInFirstOutQueue()
+    def __init__(self, time_to_live=60 * 10):
         self._cache = {}
+        self._time_to_live = time_to_live
+        self._cache_ttl = defaultdict(set)
+        self._clear_every = 3
 
-    def get_or_create(self, completion: Completion, asynchronous: bool):
-        if asynchronous and not self.is_alive():
-            self.start()
-        # note: no jedi lock; with lock it would take too much time and take away any benefit
-        # this limits the operations that we can perform to those that do not touch jedi cache
+    def clear_outdated(self):
+        now = self.time_key()
+        to_clear = [
+            timestamp
+            for timestamp in self._cache_ttl
+            if timestamp < now
+        ]
+        for time_key in to_clear:
+            for key in self._cache_ttl[time_key]:
+                del self._cache[key]
+            del self._cache_ttl[time_key]
+
+    def time_key(self):
+        return int(time() / self._time_to_live)
+
+    def get_or_create(self, completion: Completion):
         key = self._create_completion_id(completion)
-        if key in self._cache:
-            # get what we know at the time
-            most_resent = self._cache[key]
-            if asynchronous:
-                # schedule for refreshment
-                self.queue.put_nowait((key, completion))
-            return most_resent
-        else:
-            if asynchronous:
-                self.queue.put_nowait((key, completion))
-            else:
-                self._cache[key] = self.resolve_label(completion)
-            return None
 
-    @staticmethod
-    def _create_completion_id(completion: Completion):
-        # this key is not perfect but the best we can get without making it take a lot of time
-        return completion.full_name, completion.module_path, completion.line, completion.column
+        log.warning(completion.full_name)
+        if key not in self._cache:
+            if self.time_key() % self._clear_every == 0:
+                self.clear_outdated()
+
+            self._cache[key] = self.resolve_label(completion)
+            self._cache_ttl[self.time_key()].add(key)
+        return self._cache[key]
+
+    def _create_completion_id(self, completion: Completion):
+        return (
+            completion.full_name, completion.module_path,
+            completion.line, completion.column,
+            self.time_key()
+        )
 
     @staticmethod
     def resolve_label(completion):
         try:
-            with JEDI_COMPLETION_LOCK:
-                sig = completion.get_signatures()
-                if sig and completion.type in ('function', 'method'):
-                    params = ', '.join(param.name for param in sig[0].params)
-                    label = '{}({})'.format(completion.name, params)
-                    return label
-                else:
-                    return completion.name
+            sig = completion.get_signatures()
+            if sig and completion.type in ('function', 'method'):
+                params = ', '.join(param.name for param in sig[0].params)
+                label = '{}({})'.format(completion.name, params)
+                return label
+            else:
+                return completion.name
         except Exception as e:
             log.warning(
                 'Something went wrong when resolving label for {completion}: {e}'.format(
                     completion=completion, e=e
                 )
             )
-
-    def run(self):
-        while True:
-            key, completion = self.queue.get()
-            self._cache[key] = self.resolve_label(completion)
 
 
 LABEL_RESOLVER = LabelResolver()
@@ -154,8 +132,7 @@ def pyls_completions(config, document, position):
     code_position = _utils.position_to_jedi_linecolumn(document, position)
 
     code_position["fuzzy"] = settings.get("fuzzy", False)
-    with JEDI_COMPLETION_LOCK:
-        completions = document.jedi_script(use_document_path=True).complete(**code_position)
+    completions = document.jedi_script(use_document_path=True).complete(**code_position)
 
     if not completions:
         return None
@@ -164,23 +141,30 @@ def pyls_completions(config, document, position):
     snippet_support = completion_capabilities.get('completionItem', {}).get('snippetSupport')
 
     should_include_params = settings.get('include_params')
+    max_labels_resolve = settings.get('resolve_at_most_labels', 25)
     should_include_class_objects = settings.get('include_class_objects', True)
-    resolve_labels_asynchronously = settings.get('asynchronous_labels', False)
 
     include_params = snippet_support and should_include_params and use_snippets(document, position)
     include_class_objects = snippet_support and should_include_class_objects and use_snippets(document, position)
+    should_resolve_labels = len(completions) <= max_labels_resolve
+    log.warning(f"resolve: {should_resolve_labels}")
 
-    with JEDI_COMPLETION_LOCK:
-        ready_completions = [
-            _format_completion(c, include_params, asynchronous_labels=resolve_labels_asynchronously)
-            for c in completions
-        ]
+    ready_completions = [
+        _format_completion(
+            c,
+            include_params,
+            resolve_label=should_resolve_labels
+        )
+        for c in completions
+    ]
 
     if include_class_objects:
         for c in completions:
             if c.type == 'class':
-                with JEDI_COMPLETION_LOCK:
-                    completion_dict = _format_completion(c, False, resolve=resolve_eagerly, asynchronous_labels=resolve_labels_asynchronously)
+                completion_dict = _format_completion(
+                    c, False, resolve=resolve_eagerly,
+                    resolve_label=should_resolve_labels
+                )
                 completion_dict['kind'] = lsp.CompletionItemKind.TypeParameter
                 completion_dict['label'] += ' object'
                 ready_completions.append(completion_dict)
@@ -257,9 +241,9 @@ def _resolve_completion(completion, d):
     return completion
 
 
-def _format_completion(d, include_params=True, resolve=False, asynchronous_labels=True):
+def _format_completion(d, include_params=True, resolve=False, resolve_label=False):
     completion = {
-        'label': _label(d, asynchronous_labels),
+        'label': _label(d, resolve_label),
         'kind': _TYPE_MAP.get(d.type),
         'sortText': _sort_text(d),
         'insertText': d.name
@@ -302,8 +286,10 @@ def _format_completion(d, include_params=True, resolve=False, asynchronous_label
     return completion
 
 
-def _label(definition, asynchronous=True):
-    sig = LABEL_RESOLVER.get_or_create(definition, asynchronous)
+def _label(definition, resolve=False):
+    if not resolve:
+        return definition.name
+    sig = LABEL_RESOLVER.get_or_create(definition)
     if sig:
         return sig
     return definition.name
