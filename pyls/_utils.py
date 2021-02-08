@@ -168,6 +168,9 @@ def format_docstring(contents, signature=None):
                 ) + '\n'.join([wrap_signature(s) for s in signatures[1:]]) + '\n</details>'
             else:
                 prefix = wrap_signature(signature)
+            # eliminate some of the redundant signatures
+            if value.startswith(signature):
+                value = value[len(signature):]
             value = prefix + '\n\n' + value
     except UnknownFormatError:
         return contents.replace('\t', u'\u00A0' * 4).replace('  ', u'\u00A0' * 2)
