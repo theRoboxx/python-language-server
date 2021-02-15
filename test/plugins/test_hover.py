@@ -54,7 +54,7 @@ def test_numpy_hover(workspace):
 
     contents = 'Trigonometric sine, element-wise.\n\n'
     hov_sin = pyls_hover(doc, numpy_sin_hov_position)['contents'][0]
-    assert hov_3['kind'] == 'markdown'
+    assert hov_sin['kind'] == 'markdown'
     assert contents in hov_sin['value']
 
 
