@@ -15,7 +15,8 @@ Python Language Server
 
 A Python 3.6+ implementation of the `Language Server Protocol`_. A friendly fork of the `palantir/python-language-server`.
 
-Major changes:
+Major changes compared tu upstream:
+
 * added `completionItem/resolve` support to improve performance of completions
 * implemented caching of completion labels for numpy, pandas, tensorflow and matplotlib for Jedi completions
 * implemented a rule to not calculate labels for lists of completions exceeding specific number (25 by default)
