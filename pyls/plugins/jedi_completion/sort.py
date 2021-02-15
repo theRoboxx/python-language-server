@@ -2,11 +2,16 @@
 from keyword import iskeyword
 from string import ascii_lowercase
 from typing import Dict
+try:
+    from keyword import issoftkeyword
+except ImportError:
+    def issoftkeyword(s: str):
+        return False
 
 from jedi.api.classes import Completion
 
 
-def sort_text(definition: Completion, relative_frequencies: Dict[str, float] = None, sort_by_count=False):
+def sort_text(definition: Completion, relative_frequencies: Dict[str, float] = None, sort_by_count=False) -> str:
     """Use frequency-based and rule-based sorting"""
     if not definition.name:
         # TODO: why would the name be None (it is allowed)?
@@ -17,8 +22,9 @@ def sort_text(definition: Completion, relative_frequencies: Dict[str, float] = N
     elif sort_by_count and definition.name in relative_frequencies:
         # frequency is a number between 0 and 1
         rarity = 1 - relative_frequencies[definition.name]
-        # assign a-j for the frequency-based sorting
-        prefix = ascii_lowercase[round(rarity * 10)]
+        # assign c-m for the frequency-based sorting
+        # rarity = 0.5 will give 'h'
+        prefix = ascii_lowercase[round(rarity * 10) + 2]
     elif definition.name.startswith('_'):
         if definition.name.startswith('__'):
             # move double dunders to the very bottom
@@ -27,10 +33,15 @@ def sort_text(definition: Completion, relative_frequencies: Dict[str, float] = N
             # move hidden properties down
             prefix = 'o'
     elif iskeyword(definition.name):
-        # show keywords near the top
+        # show genuine keywords near the top, but below parameters
         prefix = 'b'
+    elif issoftkeyword(definition.name):
+        # soft keywords get lower priority than keywords as these might
+        # include false positives, but get a higher probability than a
+        # an average word occurring in text (equivalent to rarity=0.25)
+        prefix = 'e'
     else:
         # this name does not appear in the document and is in now way special;
         # show it just after the names that appear in the documents
-        prefix = 'k'
+        prefix = 'n'
     return prefix + definition.name
