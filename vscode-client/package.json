@@ -80,6 +80,11 @@
                     "default": 25,
                     "description": "How many labels at most should be resolved?"
                 },
+                "pyls.plugins.jedi_completion.sort_by_frequency": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Should sort completions using frequency of occurrences in the document?"
+                },
                 "pyls.plugins.jedi_definition.enabled": {
                     "type": "boolean",
                     "default": true,

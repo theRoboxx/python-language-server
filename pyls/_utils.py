@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import threading
+from typing import List
 
 import docstring_to_markdown
 import jedi
@@ -145,29 +146,25 @@ def wrap_signature(signature):
     return '```python\n' + signature + '\n```\n'
 
 
-def format_docstring(contents, signature=None):
-    """Python doc strings come in a number of formats, but LSP wants markdown.
-
-    Until we can find a fast enough way of discovering and parsing each format,
-    we can do a little better by at least preserving indentation.
-    """
+def format_docstring(contents, signatures: List[str] = None):
+    """Python doc strings come in a number of formats, but LSP wants markdown."""
     if not contents:
         return contents
 
     try:
         value = docstring_to_markdown.convert(contents)
-        if signature:
-            signatures = signature.split('\n')
+        if signatures:
             if len(signatures) > 2:
                 prefix = wrap_signature(signatures[0]) + (
                     '\n<details>\n'
                     '\n<summary>More signatures</summary>\n\n'
                 ) + '\n'.join([wrap_signature(s) for s in signatures[1:]]) + '\n</details>'
             else:
-                prefix = wrap_signature(signature)
+                prefix = wrap_signature('\n'.join(signatures))
             # eliminate some of the redundant signatures
-            if value.startswith(signature):
-                value = value[len(signature):]
+            for signature in signatures:
+                if value.startswith(signature):
+                    value = value[len(signature):]
             value = prefix + '\n\n' + value
     except docstring_to_markdown.UnknownFormatError:
         return contents.replace('\t', u'\u00A0' * 4).replace('  ', u'\u00A0' * 2)

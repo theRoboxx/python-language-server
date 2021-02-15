@@ -1,8 +1,6 @@
 # Copyright 2017 Palantir Technologies, Inc.
-import logging
 import os.path as osp
-from collections import defaultdict
-from time import time
+from typing import Dict
 
 import parso
 
@@ -10,79 +8,21 @@ from jedi.api.classes import Completion
 from pyls import _utils, hookimpl, lsp
 
 
-class LabelResolver:
-
-    def __init__(self, time_to_live=60 * 30):
-        self._cache = {}
-        self._time_to_live = time_to_live
-        self._cache_ttl = defaultdict(set)
-        self._clear_every = 2
-        # see https://github.com/davidhalter/jedi/blob/master/jedi/inference/helpers.py#L194-L202
-        self._cached_modules = {'pandas', 'numpy', 'tensorflow', 'matplotlib'}
-
-    def clear_outdated(self):
-        now = self.time_key()
-        to_clear = [
-            timestamp
-            for timestamp in self._cache_ttl
-            if timestamp < now
-        ]
-        for time_key in to_clear:
-            for key in self._cache_ttl[time_key]:
-                del self._cache[key]
-            del self._cache_ttl[time_key]
-
-    def time_key(self):
-        return int(time() / self._time_to_live)
-
-    def get_or_create(self, completion: Completion):
-        if not completion.full_name:
-            use_cache = False
-        else:
-            module_parts = completion.full_name.split('.')
-            use_cache = module_parts and module_parts[0] in self._cached_modules
-
-        if use_cache:
-            key = self._create_completion_id(completion)
-            if key not in self._cache:
-                if self.time_key() % self._clear_every == 0:
-                    self.clear_outdated()
-
-                self._cache[key] = self.resolve_label(completion)
-                self._cache_ttl[self.time_key()].add(key)
-            return self._cache[key]
-
-        return self.resolve_label(completion)
-
-    def _create_completion_id(self, completion: Completion):
-        return (
-            completion.full_name, completion.module_path,
-            completion.line, completion.column,
-            self.time_key()
-        )
-
-    @staticmethod
-    def resolve_label(completion):
-        try:
-            sig = completion.get_signatures()
-
-            if sig and completion.type in ('function', 'method'):
-                params = ', '.join(param.name for param in sig[0].params)
-                label = '{}({})'.format(completion.name, params)
-                return label
-
-            return completion.name
-        except Exception as e:   # pylint: disable=broad-except
-            log.warning(
-                'Something went wrong when resolving label for {completion}: {e}',
-                completion=completion, e=e
-            )
+from .label_resolver import LabelResolver
+from .name_counter import NameCounter
+from .sort import sort_text
 
 
-LABEL_RESOLVER = LabelResolver()
+def format_label(completion, sig):
+    if sig and completion.type in ('function', 'method'):
+        params = ', '.join(param.name for param in sig[0].params)
+        label = '{}({})'.format(completion.name, params)
+        return label
+    return completion.name
 
 
-log = logging.getLogger(__name__)
+LABEL_RESOLVER = LabelResolver(format_label)
+
 
 # Map to the VSCode type
 _TYPE_MAP = {
@@ -128,6 +68,8 @@ _ERRORS = ('error_node', )
 # most recently retrieved completion items, used for resolution
 _LAST_COMPLETIONS = {}
 
+NAME_COUNTER = NameCounter()
+
 
 @hookimpl
 def pyls_completions(config, document, position):
@@ -151,17 +93,24 @@ def pyls_completions(config, document, position):
 
     should_include_params = settings.get('include_params')
     max_labels_resolve = settings.get('resolve_at_most_labels', 25)
+    should_sort_by_frequency = settings.get('sort_by_frequency', True)
     should_include_class_objects = settings.get('include_class_objects', True)
 
     include_params = snippet_support and should_include_params and use_snippets(document, position)
     include_class_objects = snippet_support and should_include_class_objects and use_snippets(document, position)
     should_resolve_labels = len(completions) <= max_labels_resolve
 
+    relative_frequencies = None
+    if should_sort_by_frequency:
+        relative_frequencies = NAME_COUNTER.get_frequencies(document.path, document.source)
+
     ready_completions = [
         _format_completion(
             c,
             include_params,
-            resolve_label=should_resolve_labels
+            resolve_label=should_resolve_labels,
+            sort_by_frequency=should_sort_by_frequency,
+            relative_frequencies=relative_frequencies
         )
         for c in completions
     ]
@@ -243,17 +192,28 @@ def use_snippets(document, position):
             not (expr_type in _ERRORS and 'import' in code))
 
 
-def _resolve_completion(completion, d):
+def _resolve_completion(completion, d: Completion):
     completion['detail'] = _detail(d)
-    completion['documentation'] = _utils.format_docstring(d.docstring(raw=True), signature=d._get_docstring_signature())
+    completion['documentation'] = _utils.format_docstring(
+        d.docstring(raw=True),
+        signatures=[
+            signature.to_string()
+            for signature in d.get_signatures()
+        ]
+    )
     return completion
 
 
-def _format_completion(d, include_params=True, resolve=False, resolve_label=False):
+def _format_completion(
+    d: Completion, include_params=True,
+    resolve=False, resolve_label=False,
+    sort_by_frequency=False,
+    relative_frequencies: Dict[str, float] = None
+):
     completion = {
         'label': _label(d, resolve_label),
         'kind': _TYPE_MAP.get(d.type),
-        'sortText': _sort_text(d),
+        'sortText': sort_text(d, relative_frequencies=relative_frequencies, sort_by_count=sort_by_frequency),
         'insertText': d.name
     }
 
@@ -308,13 +268,3 @@ def _detail(definition):
         return definition.parent().full_name or ''
     except AttributeError:
         return definition.full_name or ''
-
-
-def _sort_text(definition):
-    """ Ensure builtins appear at the bottom.
-    Description is of format <type>: <module>.<item>
-    """
-
-    # If its 'hidden', put it next last
-    prefix = 'z{}' if definition.name.startswith('_') else 'a{}'
-    return prefix.format(definition.name)
