@@ -1,4 +1,5 @@
 # Copyright 2017 Palantir Technologies, Inc.
+import math
 import os
 import sys
 
@@ -71,6 +72,7 @@ def test_jedi_completion_item_resolve(config, workspace):
     # Over the blank line
     com_position = {'line': 8, 'character': 0}
     doc = Document(DOC_URI, workspace, DOC)
+    config.update({'plugins': {'jedi_completion': {'resolve_at_most_labels': math.inf}}})
     completions = pyls_jedi_completions(config, doc, com_position)
 
     items = {c['label']: c for c in completions}
@@ -96,9 +98,9 @@ def test_jedi_completion_with_fuzzy_enabled(config, workspace):
 
     assert items
     assert items[0]['label'] == 'commonprefix'
+    assert len(items) > 25
 
-    from time import sleep
-    sleep(5)
+    config.update({'plugins': {'jedi_completion': {'fuzzy': True, 'resolve_at_most_labels': math.inf}}})
     items = pyls_jedi_completions(config, doc, com_position)
     assert items[0]['label'] == 'commonprefix(list)'
 
@@ -121,6 +123,7 @@ def test_jedi_completion_ordering(config, workspace):
     # Over the blank line
     com_position = {'line': 8, 'character': 0}
     doc = Document(DOC_URI, workspace, DOC)
+    config.update({'plugins': {'jedi_completion': {'resolve_at_most_labels': math.inf}}})
     completions = pyls_jedi_completions(config, doc, com_position)
 
     items = {c['label']: c['sortText'] for c in completions}
