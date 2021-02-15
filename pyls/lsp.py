@@ -3,10 +3,9 @@
 
 https://github.com/Microsoft/language-server-protocol/blob/master/protocol.md
 """
-from enum import Enum
 
 
-class CompletionItemKind(Enum):
+class CompletionItemKind:
     Text = 1
     Method = 2
     Function = 3
@@ -34,32 +33,32 @@ class CompletionItemKind(Enum):
     TypeParameter = 25
 
 
-class DocumentHighlightKind(Enum):
+class DocumentHighlightKind:
     Text = 1
     Read = 2
     Write = 3
 
 
-class DiagnosticSeverity(Enum):
+class DiagnosticSeverity:
     Error = 1
     Warning = 2
     Information = 3
     Hint = 4
 
 
-class InsertTextFormat(Enum):
+class InsertTextFormat:
     PlainText = 1
     Snippet = 2
 
 
-class MessageType(Enum):
+class MessageType:
     Error = 1
     Warning = 2
     Info = 3
     Log = 4
 
 
-class SymbolKind(Enum):
+class SymbolKind:
     File = 1
     Module = 2
     Namespace = 3
@@ -80,7 +79,7 @@ class SymbolKind(Enum):
     Array = 18
 
 
-class TextDocumentSyncKind(Enum):
+class TextDocumentSyncKind:
     NONE = 0
     FULL = 1
     INCREMENTAL = 2
