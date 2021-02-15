@@ -3,8 +3,10 @@ from keyword import iskeyword
 from string import ascii_lowercase
 from typing import Dict
 try:
+    # pylint: disable=ungrouped-imports,useless-suppression
     from keyword import issoftkeyword
 except ImportError:
+    # pylint: disable=unused-argument
     def issoftkeyword(s: str):
         return False
 
@@ -24,7 +26,14 @@ def sort_text(definition: Completion, relative_frequencies: Dict[str, float] = N
         rarity = 1 - relative_frequencies[definition.name]
         # assign c-m for the frequency-based sorting
         # rarity = 0.5 will give 'h'
-        prefix = ascii_lowercase[round(rarity * 10) + 2]
+        priority = round(rarity * 10) + 2
+        # reduce the priority for hidden
+        if definition.name.startswith('_'):
+            priority += 1
+            # and double dunders
+            if definition.name.startswith('__'):
+                priority += 1
+        prefix = ascii_lowercase[priority + 2]
     elif definition.name.startswith('_'):
         if definition.name.startswith('__'):
             # move double dunders to the very bottom

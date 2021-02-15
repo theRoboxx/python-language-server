@@ -25,6 +25,7 @@ class NameCounter(Thread):
             path, contents = self.queue.get()
             self._frequencies_by_document[path] = self._calculate_relative_frequencies(contents)
 
+    # pylint: disable=no-self-use
     @lru_cache(maxsize=5)
     def _calculate_relative_frequencies(self, contents: str) -> Dict[str, float]:
         """The most common one gets 1, the least common one gets 0."""
