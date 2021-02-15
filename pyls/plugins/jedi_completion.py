@@ -51,8 +51,8 @@ class LabelResolver:
                 self._cache[key] = self.resolve_label(completion)
                 self._cache_ttl[self.time_key()].add(key)
             return self._cache[key]
-        else:
-            return self.resolve_label(completion)
+
+        return self.resolve_label(completion)
 
     def _create_completion_id(self, completion: Completion):
         return (
@@ -65,17 +65,17 @@ class LabelResolver:
     def resolve_label(completion):
         try:
             sig = completion.get_signatures()
+
             if sig and completion.type in ('function', 'method'):
                 params = ', '.join(param.name for param in sig[0].params)
                 label = '{}({})'.format(completion.name, params)
                 return label
-            else:
-                return completion.name
-        except Exception as e:
+
+            return completion.name
+        except Exception as e:   # pylint: disable=broad-except
             log.warning(
-                'Something went wrong when resolving label for {completion}: {e}'.format(
-                    completion=completion, e=e
-                )
+                'Something went wrong when resolving label for {completion}: {e}',
+                completion=completion, e=e
             )
 
 

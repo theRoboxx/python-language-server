@@ -1,11 +1,7 @@
 # Copyright 2017 Palantir Technologies, Inc.
 import logging
+from functools import lru_cache
 import pkg_resources
-try:
-    from functools import lru_cache
-except ImportError:
-    from backports.functools_lru_cache import lru_cache
-
 import pluggy
 
 from pyls import _utils, hookspecs, uris, PYLS
@@ -16,7 +12,7 @@ log = logging.getLogger(__name__)
 DEFAULT_CONFIG_SOURCES = ['pycodestyle']
 
 
-class Config(object):
+class Config:
 
     def __init__(self, root_uri, init_opts, process_id, capabilities):
         self._root_path = uris.to_fs_path(root_uri)
@@ -30,11 +26,13 @@ class Config(object):
 
         self._config_sources = {}
         try:
+            # pylint: disable=import-outside-toplevel
             from .flake8_conf import Flake8Config
             self._config_sources['flake8'] = Flake8Config(self._root_path)
         except ImportError:
             pass
         try:
+            # pylint: disable=import-outside-toplevel
             from .pycodestyle_conf import PyCodeStyleConfig
             self._config_sources['pycodestyle'] = PyCodeStyleConfig(self._root_path)
         except ImportError:
