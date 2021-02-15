@@ -69,6 +69,7 @@ _ERRORS = ('error_node', )
 _LAST_COMPLETIONS = {}
 
 NAME_COUNTER = NameCounter()
+NAME_COUNTER.start()
 
 
 @hookimpl

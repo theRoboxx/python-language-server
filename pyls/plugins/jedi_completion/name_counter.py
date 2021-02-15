@@ -17,8 +17,6 @@ class NameCounter(Thread):
         super().__init__(daemon=True)
 
     def get_frequencies(self, path: str, contents: str):
-        if not self.is_alive():
-            self.start()
         self.queue.put_nowait((path, contents))
         return self._frequencies_by_document.get(path, {})
 
@@ -30,11 +28,14 @@ class NameCounter(Thread):
     @lru_cache(maxsize=5)
     def _calculate_relative_frequencies(self, contents: str) -> Dict[str, float]:
         """The most common one gets 1, the least common one gets 0."""
-        counter = Counter([
-            token.string
-            for token in tokenize.generate_tokens(StringIO(contents).readline)
-            if token.type == tokenize.NAME
-        ])
+        tokens = []
+        try:
+            for token in tokenize.generate_tokens(StringIO(contents).readline):
+                if token.type == tokenize.NAME:
+                    tokens.append(token.string)
+        except tokenize.TokenError:
+            pass
+        counter = Counter(tokens)
         most_common_count: int = counter.most_common(1)[0][1]
         return {
             name: count / most_common_count
