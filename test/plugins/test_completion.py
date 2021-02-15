@@ -3,6 +3,8 @@ import math
 import os
 import sys
 
+import cProfile
+import jedi
 import pytest
 
 from pyls import uris, lsp
@@ -185,8 +187,6 @@ def test_numpy_completions(config, workspace):
     doc_numpy = "import numpy as np; np."
     com_position = {'line': 0, 'character': len(doc_numpy)}
     doc = Document(DOC_URI, workspace, doc_numpy)
-    import cProfile
-    import jedi
     cProfile.runctx(
         'pyls_jedi_completions(config, doc, com_position)', globals(), locals(),
         f'pyls_jedi_{jedi.__version__}_numpy_completions_1-cache.prof'

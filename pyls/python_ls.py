@@ -23,13 +23,13 @@ PYTHON_FILE_EXTENSIONS = ('.py', '.pyi')
 CONFIG_FILEs = ('pycodestyle.cfg', 'setup.cfg', 'tox.ini', '.flake8')
 
 
-class _StreamHandlerWrapper(socketserver.StreamRequestHandler, object):
+class _StreamHandlerWrapper(socketserver.StreamRequestHandler):
     """A wrapper class that is used to construct a custom handler class."""
 
     delegate = None
 
     def setup(self):
-        super(_StreamHandlerWrapper, self).setup()
+        super().setup()
         # pylint: disable=no-member
         self.delegate = self.DELEGATE_CLASS(self.rfile, self.wfile)
 
@@ -124,7 +124,7 @@ class PythonLanguageServer(MethodDispatcher):
             raise KeyError
 
         try:
-            return super(PythonLanguageServer, self).__getitem__(item)
+            return super().__getitem__(item)
         except KeyError:
             # Fallback through extra dispatchers
             for dispatcher in self._dispatchers:
@@ -137,7 +137,6 @@ class PythonLanguageServer(MethodDispatcher):
 
     def m_shutdown(self, **_kwargs):
         self._shutdown = True
-        return None
 
     def m_exit(self, **_kwargs):
         self._endpoint.shutdown()

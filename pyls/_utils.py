@@ -6,6 +6,7 @@ import os
 import sys
 import threading
 
+import docstring_to_markdown
 import jedi
 
 PY2 = sys.version_info.major == 2
@@ -27,6 +28,7 @@ def debounce(interval_s, keyed_by=None):
 
         @functools.wraps(func)
         def debounced(*args, **kwargs):
+            # pylint: disable=deprecated-method
             call_args = inspect.getcallargs(func, *args, **kwargs)
             key = call_args[keyed_by] if keyed_by else None
 
@@ -100,11 +102,7 @@ def match_uri_to_workspace(uri, workspaces):
     max_len, chosen_workspace = -1, None
     path = pathlib.Path(uri).parts
     for workspace in workspaces:
-        try:
-            workspace_parts = pathlib.Path(workspace).parts
-        except TypeError:
-            # This can happen in Python2 if 'value' is a subclass of string
-            workspace_parts = pathlib.Path(unicode(workspace)).parts
+        workspace_parts = pathlib.Path(workspace).parts
         if len(workspace_parts) > len(path):
             continue
         match_len = 0
@@ -156,9 +154,8 @@ def format_docstring(contents, signature=None):
     if not contents:
         return contents
 
-    from docstring_to_markdown import convert, UnknownFormatError
     try:
-        value = convert(contents)
+        value = docstring_to_markdown.convert(contents)
         if signature:
             signatures = signature.split('\n')
             if len(signatures) > 2:
@@ -172,7 +169,7 @@ def format_docstring(contents, signature=None):
             if value.startswith(signature):
                 value = value[len(signature):]
             value = prefix + '\n\n' + value
-    except UnknownFormatError:
+    except docstring_to_markdown.UnknownFormatError:
         return contents.replace('\t', u'\u00A0' * 4).replace('  ', u'\u00A0' * 2)
 
     return {

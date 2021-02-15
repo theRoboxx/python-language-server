@@ -1,4 +1,3 @@
-# pylint: disable=len-as-condition
 # Copyright 2019 Palantir Technologies, Inc.
 
 import re
@@ -175,10 +174,12 @@ def __compute_folding_ranges(tree, lines):
 
     while len(stack) > 0:
         node = stack.pop(0)
+
         if isinstance(node, tree_nodes.Newline):
             # Skip newline nodes
             continue
-        elif isinstance(node, tree_nodes.PythonErrorNode):
+
+        if isinstance(node, tree_nodes.PythonErrorNode):
             # Fallback to indentation-based (best-effort) folding
             start_line, _ = node.start_pos
             start_line -= 1
@@ -188,7 +189,8 @@ def __compute_folding_ranges(tree, lines):
             folding_ranges = __merge_folding_ranges(
                 folding_ranges, identation_ranges)
             break
-        elif not isinstance(node, SKIP_NODES):
+
+        if not isinstance(node, SKIP_NODES):
             valid = __check_if_node_is_valid(node)
             if valid:
                 start_line, end_line, stack = __compute_start_end_lines(
