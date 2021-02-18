@@ -12,6 +12,8 @@ class NameCounter(Thread):
 
     def __init__(self):
         # TODO: maybe add time expiry to avoid leaks
+        #   or better clean it when document closes
+        #   and only update on text sync()?
         self.queue = Queue()
         self._frequencies_by_document: Dict[str, Dict[str, float]] = {}
         super().__init__(daemon=True)
@@ -36,6 +38,10 @@ class NameCounter(Thread):
                     tokens.append(token.string)
         except tokenize.TokenError:
             pass
+
+        if not tokens:
+            return {}
+
         counter = Counter(tokens)
         most_common_count: int = counter.most_common(1)[0][1]
         return {
