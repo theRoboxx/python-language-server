@@ -30,13 +30,14 @@ LABEL_RESOLVER = LabelResolver(format_label)
 # see: https://jedi.readthedocs.io/en/latest/docs/api-classes.html#jedi.api.classes.BaseName.type
 _TYPE_MAP = {
     'module': lsp.CompletionItemKind.Module,
+    'namespace': lsp.CompletionItemKind.Module,    # to be added in Jedi 0.18+
     'class': lsp.CompletionItemKind.Class,
     'instance': lsp.CompletionItemKind.Reference,
     'function': lsp.CompletionItemKind.Function,
     'param': lsp.CompletionItemKind.Variable,
     'path': lsp.CompletionItemKind.File,
     'keyword': lsp.CompletionItemKind.Keyword,
-    'property': lsp.CompletionItemKind.Property,
+    'property': lsp.CompletionItemKind.Property,    # added in Jedi 0.18
     'statement': lsp.CompletionItemKind.Variable
 }
 
