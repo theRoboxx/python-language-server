@@ -163,7 +163,7 @@ def test_jedi_completion_item_resolve(config, workspace):
     resolved_documented_hello = pyls_jedi_completion_item_resolve(
         completion_item=documented_hello_item
     )
-    assert 'Sends a polite greeting' in resolved_documented_hello['documentation']
+    assert 'Sends a polite greeting' in resolved_documented_hello['documentation']['value']
 
 
 def test_jedi_completion_with_fuzzy_enabled(config, workspace):
@@ -426,7 +426,7 @@ foo.s"""
     assert completions[0]['label'] == 'spam()'
 
 
-@pytest.mark.skipif(PY2 or not LINUX or not CI, reason="tested on linux and python 3 only")
+@pytest.mark.skipif(not LINUX or not CI, reason="tested on linux and CI")
 def test_jedi_completion_environment(workspace):
     # Content of doc to test completion
     doc_content = '''import logh
@@ -453,7 +453,7 @@ def test_jedi_completion_environment(workspace):
     assert completions[0]['label'] == 'loghub'
 
     resolved = pyls_jedi_completion_item_resolve(completions[0])
-    assert 'changelog generator' in resolved['documentation'].lower()
+    assert 'changelog generator' in resolved['documentation']['value'].lower()
 
 
 def test_document_path_completions(tmpdir, workspace_other_root_path):

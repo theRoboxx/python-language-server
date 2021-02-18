@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 import threading
-from typing import List
+from typing import List, Dict
 
 import docstring_to_markdown
 import jedi
@@ -146,7 +146,7 @@ def wrap_signature(signature):
     return '```python\n' + signature + '\n```\n'
 
 
-def format_docstring(contents, signatures: List[str] = None):
+def format_docstring(contents, signatures: List[str] = None) -> Dict:
     """Python doc strings come in a number of formats, but LSP wants markdown."""
     if not contents:
         return contents
@@ -167,7 +167,14 @@ def format_docstring(contents, signatures: List[str] = None):
                     value = value[len(signature):]
             value = prefix + '\n\n' + value
     except docstring_to_markdown.UnknownFormatError:
-        return contents.replace('\t', u'\u00A0' * 4).replace('  ', u'\u00A0' * 2)
+        plain = ''
+        if signatures:
+            plain += '\n'.join(signatures) + '\n\n'
+        plain += contents.replace('\t', u'\u00A0' * 4).replace('  ', u'\u00A0' * 2)
+        return {
+            'kind': 'plaintext',
+            'value': plain
+        }
 
     return {
         'kind': 'markdown',
