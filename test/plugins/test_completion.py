@@ -4,6 +4,9 @@ import os
 import sys
 
 import cProfile
+from pathlib import Path
+from typing import NamedTuple, Dict
+
 import jedi
 import pytest
 
@@ -54,6 +57,62 @@ def test_rope_import_completion(config, workspace):
     doc = Document(DOC_URI, workspace, DOC)
     items = pyls_rope_completions(config, workspace, doc, com_position)
     assert items is None
+
+
+class TypeCase(NamedTuple):
+    document: str
+    position: dict
+    label: str
+    expected: lsp.CompletionItemKind
+
+
+TYPE_CASES: Dict[str, TypeCase] = {
+    'variable': TypeCase(
+        document='test = 1\ntes',
+        position={'line': 1, 'character': 3},
+        label='test',
+        expected=lsp.CompletionItemKind.Variable
+    ),
+    'function': TypeCase(
+        document='def test():\n    pass\ntes',
+        position={'line': 2, 'character': 3},
+        label='test()',
+        expected=lsp.CompletionItemKind.Function
+    ),
+    'keyword': TypeCase(
+        document='fro',
+        position={'line': 0, 'character': 3},
+        label='from',
+        expected=lsp.CompletionItemKind.Keyword
+    ),
+    'file': TypeCase(
+        document='"' + __file__[:-2].replace('"', '\\"') + '"',
+        position={'line': 0, 'character': len(__file__) - 2},
+        label=Path(__file__).name + '"',
+        expected=lsp.CompletionItemKind.File
+    ),
+    'module': TypeCase(
+        document='import statis',
+        position={'line': 0, 'character': 13},
+        label='statistics',
+        expected=lsp.CompletionItemKind.Module
+    ),
+    'class': TypeCase(
+        document='KeyErr',
+        position={'line': 0, 'character': 6},
+        label='KeyError',
+        expected=lsp.CompletionItemKind.Class
+    )
+}
+
+
+@pytest.mark.parametrize('case', list(TYPE_CASES.values()), ids=list(TYPE_CASES.keys()))
+def test_jedi_completion_type(case, config, workspace):
+    doc = Document(DOC_URI, workspace, case.document)
+    items = pyls_jedi_completions(config, doc, case.position)
+    items = {i['label']: i for i in items}
+    print(items)
+    assert items[case.label]['kind'] == case.expected
 
 
 def test_jedi_completion(config, workspace):
