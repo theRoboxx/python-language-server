@@ -26,7 +26,7 @@ LABEL_RESOLVER = LabelResolver(format_label)
 
 # Map to the LSP type
 # > Valid values for type are ``module``, `` class ``, ``instance``, ``function``,
-# > ``param``, ``path``, ``keyword`` and ``statement``.
+# > ``param``, ``path``, ``keyword``, ``property`` and ``statement``.
 # see: https://jedi.readthedocs.io/en/latest/docs/api-classes.html#jedi.api.classes.BaseName.type
 _TYPE_MAP = {
     'module': lsp.CompletionItemKind.Module,
@@ -36,6 +36,7 @@ _TYPE_MAP = {
     'param': lsp.CompletionItemKind.Variable,
     'path': lsp.CompletionItemKind.File,
     'keyword': lsp.CompletionItemKind.Keyword,
+    'property': lsp.CompletionItemKind.Property,
     'statement': lsp.CompletionItemKind.Variable
 }
 

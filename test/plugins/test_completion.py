@@ -102,12 +102,30 @@ TYPE_CASES: Dict[str, TypeCase] = {
         position={'line': 0, 'character': 6},
         label='KeyError',
         expected=lsp.CompletionItemKind.Class
+    ),
+    'property': TypeCase(
+        document=(
+            'class A:\n'
+            '    @property\n'
+            '    def test(self):\n'
+            '        pass\n'
+            'A().tes'
+        ),
+        position={'line': 4, 'character': 5},
+        label='test',
+        expected=lsp.CompletionItemKind.Property
     )
 }
 
 
 @pytest.mark.parametrize('case', list(TYPE_CASES.values()), ids=list(TYPE_CASES.keys()))
 def test_jedi_completion_type(case, config, workspace):
+
+    # property support was introduced in 0.18
+    # TODO: remove once 0.18 is required
+    if case.expected == lsp.CompletionItemKind.Property and jedi.__version__.startswith('0.17'):
+        return
+
     doc = Document(DOC_URI, workspace, case.document)
     items = pyls_jedi_completions(config, doc, case.position)
     items = {i['label']: i for i in items}
