@@ -129,7 +129,6 @@ def test_jedi_completion_type(case, config, workspace):
     doc = Document(DOC_URI, workspace, case.document)
     items = pyls_jedi_completions(config, doc, case.position)
     items = {i['label']: i for i in items}
-    print(items)
     assert items[case.label]['kind'] == case.expected
 
 
