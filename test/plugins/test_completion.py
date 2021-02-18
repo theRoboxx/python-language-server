@@ -87,7 +87,7 @@ def test_jedi_completion_item_resolve(config, workspace):
     resolved_documented_hello = pyls_jedi_completion_item_resolve(
         completion_item=documented_hello_item
     )
-    assert 'Sends a polite greeting' in resolved_documented_hello['documentation']
+    assert 'Sends a polite greeting' in resolved_documented_hello['documentation']['value']
 
 
 def test_jedi_completion_with_fuzzy_enabled(config, workspace):

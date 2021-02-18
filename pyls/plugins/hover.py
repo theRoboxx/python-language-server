@@ -25,24 +25,9 @@ def pyls_hover(document, position):
     if not definition:
         return {'contents': ''}
 
-    # raw docstring returns only doc, without signature
-    doc = _utils.format_docstring(definition.docstring(raw=True))
+    doc = _utils.format_docstring(
+        definition.docstring(raw=True),
+        signatures=[d.to_string() for d in definition.get_signatures()]
+    )
 
-    # Find first exact matching signature
-    signature = next((x.to_string() for x in definition.get_signatures()
-                      if x.name == word), '')
-
-    contents = []
-    if signature:
-        contents.append({
-            'language': 'python',
-            'value': signature,
-        })
-
-    if doc:
-        contents.append(doc)
-
-    if not contents:
-        return {'contents': ''}
-
-    return {'contents': contents}
+    return {'contents': doc}

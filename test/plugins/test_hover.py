@@ -38,22 +38,22 @@ def test_numpy_hover(workspace):
     assert contents in pyls_hover(doc, no_hov_position)['contents']
 
     contents = 'NumPy\n=====\n\nProvides\n'
-    hov_1 = pyls_hover(doc, numpy_hov_position_1)['contents'][0]
+    hov_1 = pyls_hover(doc, numpy_hov_position_1)['contents']
     assert hov_1['kind'] == 'markdown'
     assert contents in hov_1['value']
 
     contents = 'NumPy\n=====\n\nProvides\n'
-    hov_2 = pyls_hover(doc, numpy_hov_position_2)['contents'][0]
+    hov_2 = pyls_hover(doc, numpy_hov_position_2)['contents']
     assert hov_2['kind'] == 'markdown'
     assert contents in hov_2['value']
 
     contents = 'NumPy\n=====\n\nProvides\n'
-    hov_3 = pyls_hover(doc, numpy_hov_position_3)['contents'][0]
+    hov_3 = pyls_hover(doc, numpy_hov_position_3)['contents']
     assert hov_3['kind'] == 'markdown'
     assert contents in hov_3['value']
 
     contents = 'Trigonometric sine, element-wise.\n\n'
-    hov_sin = pyls_hover(doc, numpy_sin_hov_position)['contents'][0]
+    hov_sin = pyls_hover(doc, numpy_sin_hov_position)['contents']
     assert hov_sin['kind'] == 'markdown'
     assert contents in hov_sin['value']
 
@@ -66,10 +66,10 @@ def test_hover(workspace):
 
     doc = Document(DOC_URI, workspace, DOC)
 
-    contents = [{'language': 'python', 'value': 'main()'}, 'hello world']
+    contents = {
+        'kind': 'plaintext',
+        'value': 'main()\n\nhello world'
+    }
 
-    assert {
-        'contents': contents
-    } == pyls_hover(doc, hov_position)
-
+    assert {'contents': contents} == pyls_hover(doc, hov_position)
     assert {'contents': ''} == pyls_hover(doc, no_hov_position)
