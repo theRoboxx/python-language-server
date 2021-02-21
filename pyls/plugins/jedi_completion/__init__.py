@@ -7,7 +7,7 @@ import parso
 from jedi.api.classes import Completion
 from pyls import _utils, hookimpl, lsp
 
-
+from .insert import insert_text
 from .label_resolver import LabelResolver
 from .name_counter import NameCounter
 from .sort import sort_text
@@ -197,7 +197,7 @@ def _format_completion(
         'label': _label(d, resolve_label),
         'kind': _TYPE_MAP.get(d.type),
         'sortText': sort_text(d, relative_frequencies=relative_frequencies, sort_by_count=sort_by_frequency),
-        'insertText': d.name
+        'insertText': insert_text(d.name, d.type)
     }
 
     if resolve:
@@ -232,6 +232,7 @@ def _format_completion(
             completion['insertTextFormat'] = lsp.InsertTextFormat.Snippet
             completion['insertText'] = d.name + '($0)'
         else:
+            # TODO: this looks like it would add parens to keywords too!
             completion['insertText'] = d.name + '()'
 
     return completion
