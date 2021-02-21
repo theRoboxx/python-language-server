@@ -15,6 +15,7 @@ from pyls.workspace import Document
 from pyls.plugins.jedi_completion import pyls_completions as pyls_jedi_completions
 from pyls.plugins.jedi_completion import pyls_completion_item_resolve as pyls_jedi_completion_item_resolve
 from pyls.plugins.rope_completion import pyls_completions as pyls_rope_completions
+from pyls.plugins.jedi_completion.insert import insert_text
 
 
 PY2 = sys.version[0] == '2'
@@ -50,6 +51,14 @@ def documented_hello():
     \"\"\"Sends a polite greeting\"\"\"
     pass
 """
+
+
+def test_insert_text():
+    assert insert_text('from', 'keyword') == 'from '
+    assert insert_text('from', 'string') == 'from'
+
+    assert insert_text('try', 'keyword') == 'try:'
+    assert insert_text('try', 'string') == 'try'
 
 
 def test_rope_import_completion(config, workspace):
