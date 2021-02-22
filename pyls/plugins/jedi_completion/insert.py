@@ -3,7 +3,7 @@
 # keywords that are ALWAYS followed by space
 KEYWORDS_FOLLOWED_BY_SPACE = {
     'as',
-    'assert'
+    'assert',
     'async',
     'await',
     'class',
@@ -20,7 +20,7 @@ KEYWORDS_FOLLOWED_BY_SPACE = {
     'while',
     'with',
     # conditional
-    'elif'
+    'elif',
     'if',
     # logical
     'and',
